@@ -1,0 +1,6 @@
+Copyright (c) 2026 Muzo Digital. All rights reserved.
+
+This source code is published so that customers of Muzo Guard can run and audit
+it in their own GitHub workflows. You may use it unmodified, solely to connect a
+repository to Muzo Guard. Any other use, copying, modification or distribution
+requires prior written permission from Muzo Digital.

@@ -1,0 +1,9 @@
+{
+  "name": "guard-action",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Muzo Guard GitHub Action",
+  "license": "SEE LICENSE IN LICENSE",
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node --test test/" }
+}
