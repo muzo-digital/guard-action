@@ -5,5 +5,5 @@
   "description": "Muzo Guard GitHub Action",
   "license": "SEE LICENSE IN LICENSE",
   "engines": { "node": ">=20" },
-  "scripts": { "test": "node --test test/" }
+  "scripts": { "test": "node --test test/*.test.js" }
 }
