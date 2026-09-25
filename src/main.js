@@ -6,8 +6,10 @@ const { upsertComment } = require('./comment');
 const { pollAnalysis } = require('./poll');
 
 const DEFAULT_INGEST_URL = 'https://portal.muzo.digital';
+// Vercel weigert request bodies boven 4,5 MB nog vóór de route draait; dan gaat de merge verloren.
+const MAX_BODY_BYTES = 4_000_000;
 
-async function run({ github, context, core, env = process.env, fetchImpl = fetch, sleep, log = console.log }) {
+async function run({ github, context, core, env = process.env, fetchImpl = fetch, sleep, log = console.log, maxBodyBytes = MAX_BODY_BYTES }) {
   const token = env.QG_TOKEN;
   if (!token) {
     throw new Error(
@@ -24,7 +26,16 @@ async function run({ github, context, core, env = process.env, fetchImpl = fetch
     payload.mergeDiff = await collectMergeDiff({ github, context, commits, commitsOk });
     // Het closed-pad van de server leest geen files; de inhoud eruit houdt de
     // body ruim onder de limiet nu de merge-diff erbij komt.
-    for (const file of payload.filesWithDiff) delete file.content;
+    // Ook de patches: het closed-pad leest ze niet, additions/deletions blijven staan.
+    for (const file of payload.filesWithDiff) {
+      delete file.content;
+      file.patch = '';
+    }
+    const bodyBytes = Buffer.byteLength(JSON.stringify(payload));
+    if (bodyBytes > maxBodyBytes) {
+      payload.mergeDiff = { error: 'body_too_large' };
+      log(`Merge diff dropped: body of ${bodyBytes} bytes exceeds ${maxBodyBytes} (body_too_large)`);
+    }
     if (payload.mergeDiff.error) log(`Merge diff unavailable: ${payload.mergeDiff.error}`);
   }
 
@@ -61,4 +72,4 @@ async function run({ github, context, core, env = process.env, fetchImpl = fetch
   }
 }
 
-module.exports = { run, DEFAULT_INGEST_URL };
+module.exports = { run, DEFAULT_INGEST_URL, MAX_BODY_BYTES };

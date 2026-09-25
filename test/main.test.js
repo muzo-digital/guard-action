@@ -90,12 +90,55 @@ test('closed + merged: sends mergeDiff and drops file content (server ignores fi
   assert.equal(sent.filesWithDiff.some((x) => 'content' in x), false);
 });
 
+test('closed + merged: filesWithDiff patches are emptied, counts stay intact', async () => {
+  const S = (c) => c.repeat(40);
+  const fixture = {
+    ...PR_FIXTURE,
+    gitCommits: { [S('m')]: { sha: S('m'), message: 'Merge pull request #42', parents: [{ sha: S('p') }, { sha: S('a') }] } },
+    compare: { [`${S('p')}...${S('m')}`]: { files: [{ filename: 'src/widget.ts', status: 'added', additions: 100, deletions: 0, patch: '@@' }] } },
+  };
+  const fetchImpl = routedFetch({ ingest: { body: { commentMarkdown: '## Muzo Guard', status: 'merged' } }, analysis: {} });
+  await run({ github: makeFakeGithub(fixture), context: makeContext({ action: 'closed', merged: true, mergeCommitSha: S('m') }), core: core(), env: env(), fetchImpl, ...quiet });
+  const sent = JSON.parse(fetchImpl.calls[0].init.body);
+  assert.ok(sent.filesWithDiff.length > 0);
+  assert.equal(sent.filesWithDiff.every((x) => x.patch === ''), true);
+  const opened = routedFetch({ ingest: { body: { commentMarkdown: '## Muzo Guard', status: 'skipped' } }, analysis: {} });
+  await run({ github: makeFakeGithub(PR_FIXTURE), context: makeContext(), core: core(), env: env(), fetchImpl: opened, ...quiet });
+  const openedSent = JSON.parse(opened.calls[0].init.body);
+  assert.deepEqual(
+    sent.filesWithDiff.map((x) => [x.filename, x.additions, x.deletions]),
+    openedSent.filesWithDiff.map((x) => [x.filename, x.additions, x.deletions])
+  );
+  assert.equal(sent.mergeDiff.files[0].patch, '@@');
+});
+
+test('closed + merged: a body above maxBodyBytes replaces mergeDiff with body_too_large', async () => {
+  const S = (c) => c.repeat(40);
+  const fixture = {
+    ...PR_FIXTURE,
+    gitCommits: { [S('m')]: { sha: S('m'), message: 'Merge pull request #42', parents: [{ sha: S('p') }, { sha: S('a') }] } },
+    compare: { [`${S('p')}...${S('m')}`]: { files: [{ filename: 'src/widget.ts', status: 'added', additions: 100, deletions: 0, patch: '@@' }] } },
+  };
+  const logs = [];
+  const fetchImpl = routedFetch({ ingest: { body: { commentMarkdown: '## Muzo Guard', status: 'merged' } }, analysis: {} });
+  await run({ github: makeFakeGithub(fixture), context: makeContext({ action: 'closed', merged: true, mergeCommitSha: S('m') }), core: core(), env: env(), fetchImpl, sleep: async () => {}, log: (m) => logs.push(m), maxBodyBytes: 10 });
+  const sent = JSON.parse(fetchImpl.calls[0].init.body);
+  assert.deepEqual(sent.mergeDiff, { error: 'body_too_large' });
+  assert.ok(logs.some((m) => m.includes('body_too_large')));
+});
+
+test('MAX_BODY_BYTES stays below the 4.5 MB Vercel body limit', () => {
+  const { MAX_BODY_BYTES } = require('../src/main');
+  assert.equal(MAX_BODY_BYTES, 4_000_000);
+});
+
 test('opened: no mergeDiff and file content is kept', async () => {
   const fetchImpl = routedFetch({ ingest: { body: { commentMarkdown: '## Muzo Guard', status: 'skipped' } }, analysis: {} });
   await run({ github: makeFakeGithub(PR_FIXTURE), context: makeContext(), core: core(), env: env(), fetchImpl, ...quiet });
   const sent = JSON.parse(fetchImpl.calls[0].init.body);
   assert.equal('mergeDiff' in sent, false);
   assert.equal(sent.filesWithDiff.some((x) => 'content' in x), true);
+  assert.equal(sent.filesWithDiff.some((x) => x.patch), true);
 });
 
 test('closed without merge: no mergeDiff and file content is kept', async () => {
