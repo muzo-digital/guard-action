@@ -1,12 +1,15 @@
 'use strict';
 const { collectPayload } = require('./collect');
+const { collectMergeDiff } = require('./mergeDiff');
 const { postIngest, ingestEndpoint } = require('./ingest');
 const { upsertComment } = require('./comment');
 const { pollAnalysis } = require('./poll');
 
 const DEFAULT_INGEST_URL = 'https://portal.muzo.digital';
+// Vercel weigert request bodies boven 4,5 MB nog vóór de route draait; dan gaat de merge verloren.
+const MAX_BODY_BYTES = 4_000_000;
 
-async function run({ github, context, core, env = process.env, fetchImpl = fetch, sleep, log = console.log }) {
+async function run({ github, context, core, env = process.env, fetchImpl = fetch, sleep, log = console.log, maxBodyBytes = MAX_BODY_BYTES }) {
   const token = env.QG_TOKEN;
   if (!token) {
     throw new Error(
@@ -17,7 +20,24 @@ async function run({ github, context, core, env = process.env, fetchImpl = fetch
   core.setSecret(token);
   const ingestUrl = env.QG_INGEST_URL || DEFAULT_INGEST_URL;
 
-  const { payload } = await collectPayload({ github, context, log });
+  const { payload, commits, commitsOk } = await collectPayload({ github, context, log });
+
+  if (context.payload.action === 'closed' && payload.merged) {
+    payload.mergeDiff = await collectMergeDiff({ github, context, commits, commitsOk });
+    // Het closed-pad van de server leest geen files; de inhoud eruit houdt de
+    // body ruim onder de limiet nu de merge-diff erbij komt.
+    // Ook de patches: het closed-pad leest ze niet, additions/deletions blijven staan.
+    for (const file of payload.filesWithDiff) {
+      delete file.content;
+      file.patch = '';
+    }
+    const bodyBytes = Buffer.byteLength(JSON.stringify(payload));
+    if (bodyBytes > maxBodyBytes) {
+      payload.mergeDiff = { error: 'body_too_large' };
+      log(`Merge diff dropped: body of ${bodyBytes} bytes exceeds ${maxBodyBytes} (body_too_large)`);
+    }
+    if (payload.mergeDiff.error) log(`Merge diff unavailable: ${payload.mergeDiff.error}`);
+  }
 
   log(`Calling: ${ingestEndpoint(ingestUrl, '/api/ingest/pr')}`);
   const response = await postIngest({ ingestUrl, token, payload, fetchImpl });
@@ -52,4 +72,4 @@ async function run({ github, context, core, env = process.env, fetchImpl = fetch
   }
 }
 
-module.exports = { run, DEFAULT_INGEST_URL };
+module.exports = { run, DEFAULT_INGEST_URL, MAX_BODY_BYTES };
