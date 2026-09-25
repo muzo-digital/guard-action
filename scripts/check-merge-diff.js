@@ -19,7 +19,10 @@ const github = {
 (async () => {
   const pr = api(`repos/${owner}/${repo}/pulls/${number}`);
   const commits = api(`repos/${owner}/${repo}/pulls/${number}/commits?per_page=100`);
-  const context = { repo: { owner, repo }, payload: { pull_request: { merge_commit_sha: pr.merge_commit_sha } } };
+  const context = {
+    repo: { owner, repo },
+    payload: { pull_request: { merge_commit_sha: pr.merge_commit_sha, head: { sha: pr.head.sha } } },
+  };
   const result = await collectMergeDiff({ github, context, commits, commitsOk: true });
   if (result.error) return console.log(`#${number}: error ${result.error}`);
   const loc = result.files.reduce((n, f) => n + f.additions + f.deletions, 0);

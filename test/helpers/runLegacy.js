@@ -9,7 +9,13 @@ async function runLegacy(fixture, context) {
     if (name !== 'fs') throw new Error(`unexpected require ${name}`);
     return { writeFileSync: (_path, data) => { written = data; } };
   };
-  await legacyCollect({ github: makeFakeGithub(fixture), context, require: fakeRequire });
+  const originalLog = console.log;
+  console.log = () => {};
+  try {
+    await legacyCollect({ github: makeFakeGithub(fixture), context, require: fakeRequire });
+  } finally {
+    console.log = originalLog;
+  }
   return written;
 }
 

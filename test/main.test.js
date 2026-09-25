@@ -79,7 +79,7 @@ test('closed + merged: sends mergeDiff and drops file content (server ignores fi
   const S = (c) => c.repeat(40);
   const fixture = {
     ...PR_FIXTURE,
-    gitCommits: { [S('m')]: { sha: S('m'), message: 'Merge pull request #42', parents: [{ sha: S('p') }, { sha: S('h') }] } },
+    gitCommits: { [S('m')]: { sha: S('m'), message: 'Merge pull request #42', parents: [{ sha: S('p') }, { sha: S('a') }] } },
     compare: { [`${S('p')}...${S('m')}`]: { files: [{ filename: 'src/widget.ts', status: 'added', additions: 100, deletions: 0, patch: '@@' }] } },
   };
   const fetchImpl = routedFetch({ ingest: { body: { commentMarkdown: '## Muzo Guard', status: 'merged' } }, analysis: {} });
@@ -93,6 +93,14 @@ test('closed + merged: sends mergeDiff and drops file content (server ignores fi
 test('opened: no mergeDiff and file content is kept', async () => {
   const fetchImpl = routedFetch({ ingest: { body: { commentMarkdown: '## Muzo Guard', status: 'skipped' } }, analysis: {} });
   await run({ github: makeFakeGithub(PR_FIXTURE), context: makeContext(), core: core(), env: env(), fetchImpl, ...quiet });
+  const sent = JSON.parse(fetchImpl.calls[0].init.body);
+  assert.equal('mergeDiff' in sent, false);
+  assert.equal(sent.filesWithDiff.some((x) => 'content' in x), true);
+});
+
+test('closed without merge: no mergeDiff and file content is kept', async () => {
+  const fetchImpl = routedFetch({ ingest: { body: { commentMarkdown: '## Muzo Guard', status: 'skipped' } }, analysis: {} });
+  await run({ github: makeFakeGithub(PR_FIXTURE), context: makeContext({ action: 'closed' }), core: core(), env: env(), fetchImpl, ...quiet });
   const sent = JSON.parse(fetchImpl.calls[0].init.body);
   assert.equal('mergeDiff' in sent, false);
   assert.equal(sent.filesWithDiff.some((x) => 'content' in x), true);
