@@ -74,3 +74,26 @@ test('defaults ingest-url when the input is empty', async () => {
   await run({ github: makeFakeGithub(PR_FIXTURE), context: makeContext({ action: 'closed' }), core: core(), env: env({ QG_INGEST_URL: '' }), fetchImpl, ...quiet });
   assert.equal(fetchImpl.calls[0].url, 'https://portal.muzo.digital/api/ingest/pr');
 });
+
+test('closed + merged: sends mergeDiff and drops file content (server ignores files on close)', async () => {
+  const S = (c) => c.repeat(40);
+  const fixture = {
+    ...PR_FIXTURE,
+    gitCommits: { [S('m')]: { sha: S('m'), message: 'Merge pull request #42', parents: [{ sha: S('p') }, { sha: S('h') }] } },
+    compare: { [`${S('p')}...${S('m')}`]: { files: [{ filename: 'src/widget.ts', status: 'added', additions: 100, deletions: 0, patch: '@@' }] } },
+  };
+  const fetchImpl = routedFetch({ ingest: { body: { commentMarkdown: '## Muzo Guard', status: 'merged' } }, analysis: {} });
+  await run({ github: makeFakeGithub(fixture), context: makeContext({ action: 'closed', merged: true, mergeCommitSha: S('m') }), core: core(), env: env(), fetchImpl, ...quiet });
+  const sent = JSON.parse(fetchImpl.calls[0].init.body);
+  assert.equal(sent.mergeDiff.method, 'merge');
+  assert.equal(sent.mergeDiff.files[0].additions, 100);
+  assert.equal(sent.filesWithDiff.some((x) => 'content' in x), false);
+});
+
+test('opened: no mergeDiff and file content is kept', async () => {
+  const fetchImpl = routedFetch({ ingest: { body: { commentMarkdown: '## Muzo Guard', status: 'skipped' } }, analysis: {} });
+  await run({ github: makeFakeGithub(PR_FIXTURE), context: makeContext(), core: core(), env: env(), fetchImpl, ...quiet });
+  const sent = JSON.parse(fetchImpl.calls[0].init.body);
+  assert.equal('mergeDiff' in sent, false);
+  assert.equal(sent.filesWithDiff.some((x) => 'content' in x), true);
+});

@@ -1,5 +1,6 @@
 'use strict';
 const { collectPayload } = require('./collect');
+const { collectMergeDiff } = require('./mergeDiff');
 const { postIngest, ingestEndpoint } = require('./ingest');
 const { upsertComment } = require('./comment');
 const { pollAnalysis } = require('./poll');
@@ -17,7 +18,15 @@ async function run({ github, context, core, env = process.env, fetchImpl = fetch
   core.setSecret(token);
   const ingestUrl = env.QG_INGEST_URL || DEFAULT_INGEST_URL;
 
-  const { payload } = await collectPayload({ github, context, log });
+  const { payload, commits, commitsOk } = await collectPayload({ github, context, log });
+
+  if (context.payload.action === 'closed' && payload.merged) {
+    payload.mergeDiff = await collectMergeDiff({ github, context, commits, commitsOk });
+    // Het closed-pad van de server leest geen files; de inhoud eruit houdt de
+    // body ruim onder de limiet nu de merge-diff erbij komt.
+    for (const file of payload.filesWithDiff) delete file.content;
+    if (payload.mergeDiff.error) log(`Merge diff unavailable: ${payload.mergeDiff.error}`);
+  }
 
   log(`Calling: ${ingestEndpoint(ingestUrl, '/api/ingest/pr')}`);
   const response = await postIngest({ ingestUrl, token, payload, fetchImpl });
