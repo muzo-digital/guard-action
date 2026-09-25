@@ -1,0 +1,32 @@
+name: Muzo Guard
+description: Sends pull request data to Muzo Guard and posts the result as a PR comment.
+author: Muzo Digital
+branding:
+  icon: shield
+  color: blue
+inputs:
+  token:
+    description: The repository's Muzo ingest token (secrets.QG_INGEST_TOKEN).
+    required: true
+  ingest-url:
+    description: Muzo Guard base URL.
+    required: false
+    default: https://portal.muzo.digital
+  poll-analysis:
+    description: Wait for the security analysis and update the comment (true/false).
+    required: false
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - name: Muzo Guard
+      uses: actions/github-script@v7
+      env:
+        GUARD_ACTION_PATH: ${{ github.action_path }}
+        QG_TOKEN: ${{ inputs.token }}
+        QG_INGEST_URL: ${{ inputs.ingest-url }}
+        QG_POLL: ${{ inputs.poll-analysis }}
+      with:
+        script: |
+          const { run } = require(`${process.env.GUARD_ACTION_PATH}/src/main.js`);
+          await run({ github, context, core });
