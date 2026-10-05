@@ -148,3 +148,28 @@ test('closed without merge: no mergeDiff and file content is kept', async () => 
   assert.equal('mergeDiff' in sent, false);
   assert.equal(sent.filesWithDiff.some((x) => 'content' in x), true);
 });
+
+test('ingest 5xx on a merge is retried and the comment is still posted', async () => {
+  const github = makeFakeGithub(PR_FIXTURE);
+  let n = 0;
+  const fetchImpl = async (url) => {
+    if (n++ === 0) return { status: 500, ok: false, text: async () => '{"error":"Failed to record close event"}' };
+    return { status: 200, ok: true, text: async () => JSON.stringify({ commentMarkdown: '## Muzo Guard', status: 'merged' }) };
+  };
+  const warnings = [];
+  const c = { ...core(), warning: (m) => warnings.push(m) };
+  await run({ github, context: makeContext({ action: 'closed', merged: true }), core: c, env: env(), fetchImpl, ...quiet });
+  assert.equal(n, 2);
+  assert.equal(warnings.length, 1);
+  assert.equal(github.calls.filter(([name]) => name === 'issues.createComment' || name === 'issues.updateComment').length, 1);
+});
+
+test('ingest failing on every attempt fails the job without commenting', async () => {
+  const github = makeFakeGithub(PR_FIXTURE);
+  const fetchImpl = async () => { throw new TypeError('fetch failed'); };
+  await assert.rejects(
+    run({ github, context: makeContext({ action: 'closed', merged: true }), core: core(), env: env(), fetchImpl, ...quiet }),
+    /Muzo Guard ingest failed after 4 attempts \(last: network error: fetch failed\)/
+  );
+  assert.equal(github.calls.some(([name]) => name === 'issues.createComment' || name === 'issues.updateComment'), false);
+});

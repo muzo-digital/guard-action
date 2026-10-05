@@ -21,8 +21,22 @@ test('returns commentMarkdown once ready, querying the analysis endpoint', async
   assert.equal(fetchImpl.calls[0].init.headers['x-qg-token'], 't');
 });
 
-test('gives up on HTTP error', async () => {
-  assert.equal(await pollAnalysis({ ...base, fetchImpl: seq([json(500, {})]) }), null);
+test('gives up on a 4xx HTTP error', async () => {
+  const fetchImpl = seq([json(401, {})]);
+  assert.equal(await pollAnalysis({ ...base, fetchImpl }), null);
+  assert.equal(fetchImpl.calls.length, 1);
+});
+
+test('5xx and 429 are polled again instead of giving up', async () => {
+  const fetchImpl = seq([json(503, {}), json(429, {}), json(200, { ready: true, commentMarkdown: 'done' })]);
+  assert.equal(await pollAnalysis({ ...base, fetchImpl }), 'done');
+  assert.equal(fetchImpl.calls.length, 3);
+});
+
+test('persistent 5xx gives null after maxAttempts', async () => {
+  const fetchImpl = seq([json(500, {})]);
+  assert.equal(await pollAnalysis({ ...base, fetchImpl, maxAttempts: 3 }), null);
+  assert.equal(fetchImpl.calls.length, 3);
 });
 
 test('network errors are retried, then null after maxAttempts', async () => {
