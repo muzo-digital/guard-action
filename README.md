@@ -54,6 +54,8 @@ Dependabot can automatically update your action version with the `github-actions
 
 - Does your organization restrict which Actions may run (Settings → Actions → General → "Allow select actions")? Add `muzo-digital/guard-action@*` to the allowlist, otherwise the workflow cannot start.
 
+- Temporary Muzo Guard outages (network errors, timeouts, HTTP 5xx or 429) are retried automatically: 4 attempts with backoff (~2s, ~5s, ~12s, honouring `Retry-After` up to 30s). If every attempt fails, the job fails; re-run it to send the PR event again. Other 4xx responses (invalid token, unknown repo) are not retried.
+
 ## License
 
 See [LICENSE](LICENSE) for details. This source is published so customers can audit the code running in their repositories.
