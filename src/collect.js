@@ -9,6 +9,7 @@ const SKIP_CONTENT_PATTERNS = [
 ];
 const MAX_FILE_SIZE = 100000; // 100KB per bestand
 const MAX_TOTAL_CONTENT = 500000; // 500KB totaal
+const MAX_CONTENT_FETCHES = 100; // begrenst getContent-calls; bestanden >100KB tellen niet mee in het totaal
 
 async function collectPayload({ github, context, log = console.log }) {
   const { owner, repo } = context.repo;
@@ -32,11 +33,14 @@ async function collectPayload({ github, context, log = console.log }) {
   }));
 
   let totalContentSize = 0;
+  let contentFetches = 0;
   const headSha = pull.head.sha;
   for (const file of filesWithDiff) {
     if (file.status === 'removed') continue;
     if (SKIP_CONTENT_PATTERNS.some((p) => p.test(file.filename))) continue;
     if (totalContentSize >= MAX_TOTAL_CONTENT) break;
+    if (contentFetches >= MAX_CONTENT_FETCHES) break;
+    contentFetches++;
     try {
       const { data: fileData } = await github.rest.repos.getContent({ owner, repo, path: file.filename, ref: headSha });
       if (Array.isArray(fileData) || !fileData.content) continue;
@@ -91,4 +95,4 @@ async function collectPayload({ github, context, log = console.log }) {
   return { payload, commits, commitsOk };
 }
 
-module.exports = { collectPayload };
+module.exports = { collectPayload, MAX_CONTENT_FETCHES };

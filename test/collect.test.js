@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { collectPayload } = require('../src/collect');
+const { collectPayload, MAX_CONTENT_FETCHES } = require('../src/collect');
 const { makeFakeGithub, makeContext } = require('./helpers/fakeGithub');
 const { PR_FIXTURE } = require('./fixtures/prFixture');
 const { runLegacy } = require('./helpers/runLegacy');
@@ -30,4 +30,13 @@ test('returns the raw commits for later use', async () => {
   const { commits, commitsOk } = await collectPayload({ github: makeFakeGithub(PR_FIXTURE), context: makeContext(), log: () => {} });
   assert.equal(commitsOk, true);
   assert.deepEqual(commits.map((c) => c.sha), ['c1', 'c2']);
+});
+
+test('caps the number of content fetches on very large PRs', async () => {
+  const files = Array.from({ length: 150 }, (_, i) => ({ filename: `src/f${i}.ts`, status: 'modified', additions: 1, deletions: 0, patch: '' }));
+  const contents = Object.fromEntries(files.map((f) => [f.filename, { content: Buffer.from('x').toString('base64'), size: 200000 }]));
+  const github = makeFakeGithub({ ...PR_FIXTURE, files, contents });
+  const { payload } = await collectPayload({ github, context: makeContext(), log: () => {} });
+  assert.equal(github.calls.filter(([name]) => name === 'repos.getContent').length, MAX_CONTENT_FETCHES);
+  assert.equal(payload.filesWithDiff.length, 150);
 });
