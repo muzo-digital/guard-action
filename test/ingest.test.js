@@ -27,8 +27,8 @@ test('trailing slash on ingest-url does not double up', () => {
 });
 
 test('non-JSON response gives body null and keeps raw text', async () => {
-  const res = await postIngest({ ingestUrl: 'https://x.nl', token: 't', payload: {}, fetchImpl: fakeFetch(502, '<html>Bad gateway</html>') });
-  assert.equal(res.status, 502);
+  const res = await postIngest({ ingestUrl: 'https://x.nl', token: 't', payload: {}, fetchImpl: fakeFetch(404, '<html>Not found</html>') });
+  assert.equal(res.status, 404);
   assert.equal(res.body, null);
-  assert.match(res.raw, /Bad gateway/);
+  assert.match(res.raw, /Not found/);
 });

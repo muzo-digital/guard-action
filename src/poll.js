@@ -1,6 +1,7 @@
 'use strict';
 const { VERSION } = require('./version');
 const { ingestEndpoint } = require('./ingest');
+const { isRetryableStatus } = require('./retry');
 
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -26,6 +27,10 @@ async function pollAnalysis({
     await sleep(intervalMs);
     try {
       const res = await fetchImpl(url, { headers: { 'x-qg-token': token, 'x-guard-action-version': VERSION } });
+      if (isRetryableStatus(res.status)) {
+        log(`Poll attempt ${attempt}: HTTP ${res.status} — trying again.`);
+        continue;
+      }
       if (!res.ok) {
         log(`Poll attempt ${attempt}: HTTP ${res.status} — giving up.`);
         return null;

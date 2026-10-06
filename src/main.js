@@ -40,7 +40,8 @@ async function run({ github, context, core, env = process.env, fetchImpl = fetch
   }
 
   log(`Calling: ${ingestEndpoint(ingestUrl, '/api/ingest/pr')}`);
-  const response = await postIngest({ ingestUrl, token, payload, fetchImpl });
+  const warn = (message) => (typeof core.warning === 'function' ? core.warning(message) : log(message));
+  const response = await postIngest({ ingestUrl, token, payload, fetchImpl, ...(sleep ? { sleep } : {}), log, warn });
   log(`Raw response: HTTP ${response.status} ${response.raw}`);
 
   const initial = response.body;
