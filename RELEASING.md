@@ -10,6 +10,7 @@
 
 De tags `v*` zijn beschermd met een tag-ruleset (alleen admins mogen `v*` aanmaken, verplaatsen of verwijderen): `v1` bepaalt welke code bij élke klant draait met hun PR-schrijfrechten.
 
-Een wijziging aan het payloadcontract, de inputs, of de events/permissions die het
+Een brekende wijziging aan het payloadcontract (een veld dat de server verplicht stelt, of een
+veranderde betekenis van een bestaand veld), de inputs, of de events/permissions die het
 klanttemplate nodig heeft, is een nieuwe major (`v2`). Daarvoor moet de klant zelf zijn
-workflow aanpassen.
+workflow aanpassen. Een optioneel extra veld dat de server mag negeren is een minor.
