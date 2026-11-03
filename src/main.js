@@ -1,6 +1,7 @@
 'use strict';
 const { collectPayload } = require('./collect');
 const { collectMergeDiff } = require('./mergeDiff');
+const { collectCommitAuthorEmails } = require('./commitAuthors');
 const { postIngest, ingestEndpoint } = require('./ingest');
 const { upsertComment } = require('./comment');
 const { pollAnalysis } = require('./poll');
@@ -21,6 +22,9 @@ async function run({ github, context, core, env = process.env, fetchImpl = fetch
   const ingestUrl = env.QG_INGEST_URL || DEFAULT_INGEST_URL;
 
   const { payload, commits, commitsOk } = await collectPayload({ github, context, log });
+
+  const commitAuthorEmails = collectCommitAuthorEmails(commits, commitsOk);
+  if (commitAuthorEmails) payload.commitAuthorEmails = commitAuthorEmails;
 
   if (context.payload.action === 'closed' && payload.merged) {
     payload.mergeDiff = await collectMergeDiff({ github, context, commits, commitsOk });

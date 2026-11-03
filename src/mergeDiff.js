@@ -101,4 +101,4 @@ async function collectMergeDiff({ github, context, commits, commitsOk }) {
   }
 }
 
-module.exports = { collectMergeDiff, resolveMergeBase, MAX_COMPARE_FILES, MAX_MERGE_PATCH_BYTES };
+module.exports = { collectMergeDiff, resolveMergeBase, MAX_LISTED_COMMITS, MAX_COMPARE_FILES, MAX_MERGE_PATCH_BYTES };
