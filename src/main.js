@@ -1,7 +1,7 @@
 'use strict';
 const { collectPayload } = require('./collect');
 const { collectMergeDiff } = require('./mergeDiff');
-const { collectCommitAuthorEmails } = require('./commitAuthors');
+const { collectCommitCommitterEmails } = require('./commitCommitters');
 const { postIngest, ingestEndpoint } = require('./ingest');
 const { upsertComment } = require('./comment');
 const { pollAnalysis } = require('./poll');
@@ -23,8 +23,8 @@ async function run({ github, context, core, env = process.env, fetchImpl = fetch
 
   const { payload, commits, commitsOk } = await collectPayload({ github, context, log });
 
-  const commitAuthorEmails = collectCommitAuthorEmails(commits, commitsOk);
-  if (commitAuthorEmails) payload.commitAuthorEmails = commitAuthorEmails;
+  const commitCommitterEmails = collectCommitCommitterEmails(commits, commitsOk);
+  if (commitCommitterEmails) payload.commitCommitterEmails = commitCommitterEmails;
 
   if (context.payload.action === 'closed' && payload.merged) {
     payload.mergeDiff = await collectMergeDiff({ github, context, commits, commitsOk });

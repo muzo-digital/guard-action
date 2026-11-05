@@ -4,7 +4,7 @@
 2. Canary: quality-guard draait op `@main`. Open of push een test-PR in muzo-digital/quality-guard
    en controleer dat de Muzo-job slaagt en de comment klopt.
 3. Tag: `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
-4. Kanaal verschuiven: `git tag -f v1 vX.Y.Z && git push -f origin v1`.
+4. Kanaal verschuiven: `git tag -f v1 vX.Y.Z && git push -f origin v1`. Dit bereikt alleen repo's die `@v1` gebruiken; repo's met een oude gekopieerde workflow of een vastgepind commit hebben een eigen migratie nodig.
 5. Terugdraaien: `git tag -f v1 <vorige vX.Y.Z> && git push -f origin v1`. Klanten draaien
    bij hun volgende PR-event weer de vorige versie.
 
