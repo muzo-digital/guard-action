@@ -1,12 +1,12 @@
 'use strict';
 const { MAX_LISTED_COMMITS } = require('./mergeDiff');
 
-// "Update with rebase" op GitHub zet de committer op dit adres; dat is geen persoon.
+// Dit adres gebruikt GitHub als committer bij commits die GitHub zelf maakt; dat is geen persoon.
 const GITHUB_NOREPLY = 'noreply@github.com';
 
 /**
  * Unieke, lowercase e-mailadressen van de committers van de PR (merge-commits en noreply@github.com uitgezonderd).
- * De auteur is voor freelancers altijd app@muzo.digital (Vercel eist dat); de committer is het persoonlijke adres.
+ * De auteur is voor freelancers bij werk via Muzo-App app@muzo.digital (Vercel eist dat); de committer is het persoonlijke adres.
  * undefined = onbekend (commits niet op te halen of afgekapt door de paginatie-cap); [] = geen werk-commits.
  */
 function collectCommitCommitterEmails(commits, commitsOk) {
