@@ -1,6 +1,6 @@
 {
   "name": "guard-action",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "description": "Muzo Guard GitHub Action",
   "license": "SEE LICENSE IN LICENSE",

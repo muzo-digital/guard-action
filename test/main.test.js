@@ -174,17 +174,29 @@ test('ingest failing on every attempt fails the job without commenting', async (
   assert.equal(github.calls.some(([name]) => name === 'issues.createComment' || name === 'issues.updateComment'), false);
 });
 
-test('sends commitAuthorEmails (unique, lowercased, merges excluded) in the payload', async () => {
+test('sends commitCommitterEmails (unique, lowercased, merges and noreply excluded) and no commitAuthorEmails', async () => {
+  const c = (sha, parents, committer) => ({ sha, parents, commit: { message: sha, author: { email: 'app@muzo.digital' }, committer: { email: committer } } });
   const fixture = {
     ...PR_FIXTURE,
     commits: [
-      { sha: 'c1', parents: [{}], commit: { message: 'a', author: { email: 'Dev@X.nl' } } },
-      { sha: 'c2', parents: [{}], commit: { message: 'b', author: { email: 'dev@x.nl' } } },
-      { sha: 'c3', parents: [{}, {}], commit: { message: 'Merge', author: { email: 'app@muzo.digital' } } },
+      c('c1', [{}], 'Dev@X.nl'),
+      c('c2', [{}], 'dev@x.nl'),
+      c('c3', [{}, {}], 'merge@x.nl'),
+      c('c4', [{}], 'noreply@github.com'),
     ],
   };
   const fetchImpl = routedFetch({ ingest: { body: { commentMarkdown: '## Muzo Guard', status: 'skipped' } }, analysis: {} });
   await run({ github: makeFakeGithub(fixture), context: makeContext(), core: core(), env: env(), fetchImpl, ...quiet });
   const sent = JSON.parse(fetchImpl.calls[0].init.body);
-  assert.deepEqual(sent.commitAuthorEmails, ['dev@x.nl']);
+  assert.deepEqual(sent.commitCommitterEmails, ['dev@x.nl']);
+  assert.equal('commitAuthorEmails' in sent, false);
+});
+
+test('omits commitCommitterEmails when the commit fetch fails', async () => {
+  const fixture = { ...PR_FIXTURE, commitsError: 'boom' };
+  const fetchImpl = routedFetch({ ingest: { body: { commentMarkdown: '## Muzo Guard', status: 'skipped' } }, analysis: {} });
+  await run({ github: makeFakeGithub(fixture), context: makeContext(), core: core(), env: env(), fetchImpl, ...quiet });
+  const sent = JSON.parse(fetchImpl.calls[0].init.body);
+  assert.equal('commitCommitterEmails' in sent, false);
+  assert.equal('commitAuthorEmails' in sent, false);
 });
