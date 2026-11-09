@@ -1,0 +1,16 @@
+name: Muzo
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed, labeled, unlabeled]
+
+jobs:
+  muzo:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: muzo-digital/guard-action@1ab21ee6f523250ae6102966e56945a7bde595bb # v1.4.0
+        with:
+          token: ${{ secrets.QG_INGEST_TOKEN }}
